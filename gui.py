@@ -1,6 +1,4 @@
-from ast import main
-from multiprocessing.util import info
-from time import time
+import _testclinic_limited
 import customtkinter as ctk
 from tkinter import messagebox
 from spotify_client import SpotifyClient
@@ -9,7 +7,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 import threading
-from downloader import Downloader
+from download_manager import DownloadManager
 
 
 
@@ -33,127 +31,6 @@ class SpotiFlacGUI:
         self.build_ui()
 
     def build_ui(self):
-
-        #main = ctk.CTkFrame(self.app)
-        #main.pack(fill="both", expand=True, padx=20, pady=20)
-        #
-        #main.grid_columnconfigure(0, weight=1)
-        #main.grid_columnconfigure(1, weight=3)
-        #main.grid_rowconfigure(3, weight=1)
-        #
-        #info = ctk.CTkFrame(main)
-        #info.grid(row=2, column=1, sticky="nsew")
-        #
-        #bottom = ctk.CTkFrame(main)
-        #bottom.grid(
-        #    row=4,
-        #    column=0,
-        #    columnspan=2,
-        #    sticky="ew"
-        #)
-        #
-        #self.status = ctk.CTkLabel(
-        #    bottom,
-        #    text="Ready"
-        #    )
-        #
-        #self.status.configure(text="Downloading...")
-        #self.status.configure(text="Finished!")
-#
-        #self.status.grid(row=0, column=0, padx=10)
-        #
-        #
-        #title = ctk.CTkLabel(
-        #    main,
-        #    text="🎵 Spoti-flac",
-        #    font=("Segoe UI", 28, "bold")
-        #)
-        #title.grid(pady=(20, 10))
-#
-        #subtitle = ctk.CTkLabel(
-        #    main,
-        #    text="Paste a Spotify Playlist URL",
-        #    font=("Segoe UI", 14)
-        #)
-        #subtitle.grid()
-#
-        #self.url_entry = ctk.CTkEntry(
-        #    main,
-        #    width=700,
-        #    placeholder_text="https://open.spotify.com/#playlist/..."
-        #)
-        #self.url_entry.grid(pady=20)
-#
-        #self.load_button = ctk.CTkButton(
-        #    main,
-        #    text="Load Playlist",
-        #    command=self.load_playlist
-        #)
-        #self.load_button.grid()
-#
-        #self.song_frame = ctk.CTkScrollableFrame(
-        #main
-        #)
-#
-        #self.song_frame.grid(row=3, column=0, columnspan=2, #sticky="nsew", pady=20)
-#
-        #self.cover_label = ctk.CTkLabel(
-        #    main,
-        #    text="No Cover",
-        #    width=220,
-        #    height=220
-        #)
-#
-        #self.cover_label.grid(row=2, column=0, padx=20, #pady=20, sticky="n")
-#
-        #self.playlist_name = ctk.CTkLabel(
-        #    main,
-        #    text="No playlist loaded",
-        #    font=("Segoe UI",20,"bold")
-        #)
-#
-        #self.playlist_name.grid()
-#
-        #self.song_count = ctk.CTkLabel(
-        #    main,
-        #    text=""
-        #)
-#
-        #self.song_count.grid()
-        #
-        #self.output_entry = ctk.CTkEntry(
-        #main,
-        #width=600
-        #)
-#
-        #self.output_entry.grid()
-#
-        #browse = ctk.CTkButton(
-        #    main,
-        #    text="Browse",
-        #    command=self.select_folder
-        #)
-#
-        #browse.grid()
-        #
-        #self.progress = ctk.CTkProgressBar(
-        #    main,
-        #    width=700
-        #)
-#
-        #self.progress.grid(pady=20)
-#
-        #self.progress.set(0)
-        #
-        #self.download_button = ctk.CTkButton(
-        #    main,
-        #    text="Download Selected",
-        #    command=self.download_selected
-        #    )
-#
-        #self.download_button.grid(pady=15)
-
-######## REBUILDING UI ########
         
         main = ctk.CTkFrame(self.app)
         main.pack(fill="both", expand=True, padx=20, pady=20)
@@ -282,6 +159,7 @@ class SpotiFlacGUI:
         )
 
         self.status.pack(side="left")
+       
 
         self.download_button = ctk.CTkButton(
             bottom,
@@ -290,6 +168,23 @@ class SpotiFlacGUI:
         )
 
         self.download_button.pack(side="right")
+        
+         
+        self.provider_menu = ctk.CTkOptionMenu(
+        bottom,
+        values=["spotDL", "Qobuz", "yt-dlp"]
+        )
+
+        self.provider_menu.set("yt-dlp")  # Default provider
+        self.provider_menu.pack(side="right", padx=(0,10))
+        
+        self.log_box = ctk.CTkTextbox(
+        self.app,
+        width=700,
+        height=120
+        )
+        
+        self.log_box.pack(pady=10)
 
 
     def load_playlist(self):
@@ -347,7 +242,13 @@ class SpotiFlacGUI:
 
         except Exception as e:
             messagebox.showerror("Spotify Error", str(e))
-            
+
+
+
+
+
+    ## FUNCTIONS
+
     def select_folder(self):
 
         folder = filedialog.askdirectory()
@@ -363,7 +264,6 @@ class SpotiFlacGUI:
         ).start()
             
         
-
     def download_worker(self):
 
         selected = []
@@ -380,11 +280,18 @@ class SpotiFlacGUI:
             )
             return
 
-        downloader = Downloader(
-            self.output_entry.get()
+        self.download_button.configure(state="disabled")
+        self.load_button.configure(state="disabled")
+        self.progress.set(0)
+        
+        manager = DownloadManager(
+            self.output_entry.get(),
+            provider=self.provider_menu.get().lower()
         )
 
         total = len(selected)
+        
+        
 
         for i, song in enumerate(selected, start=1):
 
@@ -392,17 +299,33 @@ class SpotiFlacGUI:
                 text=f"Downloading: {song['title']}"
             )
 
-            downloader.download(song)
+            self.log(f"Downloading {song['title']}")
+
+            result = manager.download(song)
+
+            if result.success:
+                self.log(f"✓ {song['title']} ({result.provider})")
+            else:
+                self.log(f"✗ {song['title']} ({result.error})")
 
             self.progress.set(i / total)
 
-        self.status.configure(text="Finished!")
-        
-    def download(self, song):
-
-        print(f"Downloading {song['title']}...")
-        time.sleep(1)
-        print("Finished!")
+            self.status.configure(
+                text=f"{i}/{total} downloaded"
+            )           
+            
+        self.download_button.configure(state="normal")
+        self.load_button.configure(state="normal")  
+        self.progress.set(1)    
+            
+    def log(self, text):
+        self.app.after(
+            0,
+            lambda: (
+            self.log_box.insert("end", text + "\n"),
+            self.log_box.see("end")
+            )
+        )
     
     def run(self):
         self.app.mainloop()
