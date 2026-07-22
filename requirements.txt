@@ -4,3 +4,5 @@ spotipy
 customtkinter
 requests
 pillow
+spotdl
+yt-dlp
