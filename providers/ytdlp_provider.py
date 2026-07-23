@@ -19,6 +19,8 @@ class YtDlpProvider(BaseProvider):
     def download(self, song):
 
         query = f"{song['artists']} {song['title']}"
+        
+        print(f"Searching: {query}")
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -35,7 +37,7 @@ class YtDlpProvider(BaseProvider):
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
+                    "preferredcodec": "flac",
                     "preferredquality": "320",
                 }
             ],
@@ -51,6 +53,8 @@ class YtDlpProvider(BaseProvider):
                 )
 
                 video = info["entries"][0]
+                
+                print(f"Found: {video['title']}")
 
                 return DownloadResult(
                     success=True,
