@@ -279,6 +279,15 @@ class SpotiFlacGUI:
                 "Please select at least one song."
             )
             return
+        
+        output_folder = self.output_entry.get().strip()
+
+        if not output_folder:
+            messagebox.showerror(
+                "Output Folder",
+                "Please select an output folder first."
+            )
+            return
 
         self.download_button.configure(state="disabled")
         self.load_button.configure(state="disabled")
