@@ -2,7 +2,7 @@ import os
 import yt_dlp
 from providers.base_provider import BaseProvider
 from models.download_result import DownloadResult
-
+from metadata import MetadataWriter
 
 class YtDlpProvider(BaseProvider):
 
@@ -27,7 +27,7 @@ class YtDlpProvider(BaseProvider):
 
             "outtmpl": os.path.join(
                 self.output_folder,
-                "%(title)s.%(ext)s"
+                f"{song['artists']} - {song['title']}.%(ext)s"
             ),
 
             "quiet": True,
@@ -53,14 +53,24 @@ class YtDlpProvider(BaseProvider):
                 )
 
                 video = info["entries"][0]
-                
+
                 print(f"Found: {video['title']}")
 
+                filename = os.path.join(
+                    self.output_folder,
+                    f"{song['artists']} - {song['title']}.flac"
+                )
+
+                MetadataWriter.write(
+                    filename,
+                    song
+                )
+                
                 return DownloadResult(
                     success=True,
-                    provider=self.name,
-                    filename=video["title"]
-                )
+                    provider="yt-dlp",
+                    filename=filename
+                )       
 
         except Exception as e:
 

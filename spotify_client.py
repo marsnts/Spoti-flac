@@ -50,6 +50,14 @@ class SpotifyClient:
                         if track["album"]["images"]
                         else None
                     ),
+                    "track_number": track["track_number"],
+                    "release_date": track["album"]["release_date"],
+                    "album_artist":
+                    ", ".join(
+                        a["name"]
+                        for a in track["album"]["artists"]
+                    ),
+                    "disc_number": track["disc_number"],
                 })
 
             if results["next"]:
