@@ -8,10 +8,10 @@ from PIL import Image
 from io import BytesIO
 import threading
 from download_manager import DownloadManager
+import os
 
 
-
-
+#  GUI Class
 class SpotiFlacGUI:
 
     def __init__(self):
@@ -23,10 +23,17 @@ class SpotiFlacGUI:
 
         # Store song checkboxes
         self.song_checkboxes = []
+        
+        # Flag to indicate if the download process should be canceled
+        self.cancel_download = False
 
         self.app = ctk.CTk()
         self.app.title("Spoti-flac")
-        self.app.geometry("900x650")
+        #self.app.geometry("900x650")
+        
+        # Center the window on the screen
+        self.app.geometry(f"+{(self.app.winfo_screenwidth()-self.app.winfo_width())//2}"
+              f"+{(self.app.winfo_screenheight()-self.app.winfo_height())//2}")
 
         self.build_ui()
 
@@ -155,7 +162,9 @@ class SpotiFlacGUI:
         
         self.status = ctk.CTkLabel(
         bottom,
-        text="Ready"
+        text="Ready",
+        justify="left",
+        anchor="w"
         )
 
         self.status.pack(side="left")
@@ -169,10 +178,18 @@ class SpotiFlacGUI:
 
         self.download_button.pack(side="right")
         
-         
+        self.cancel_button = ctk.CTkButton(
+            bottom,
+            text="Cancel",
+            command=self.cancel_downloads,
+            state="disabled"
+        )
+
+        self.cancel_button.pack(side="right", padx=(0, 10))
+        
         self.provider_menu = ctk.CTkOptionMenu(
         bottom,
-        values=["spotDL", "Qobuz", "yt-dlp"]
+        values=["yt-dlp", "spotDL", "Qobuz"]
         )
 
         self.provider_menu.set("yt-dlp")  # Default provider
@@ -247,8 +264,9 @@ class SpotiFlacGUI:
 
 
 
-    ## FUNCTIONS
+    # Functions
 
+    #Selecting output folder
     def select_folder(self):
 
         folder = filedialog.askdirectory()
@@ -257,7 +275,33 @@ class SpotiFlacGUI:
             self.output_entry.delete(0, "end")
             self.output_entry.insert(0, folder)
             
+    # Downloading selected songs
     def download_selected(self):
+        
+            # Flag to indicate if the download process should be canceled
+            self.cancel_download = False
+
+            self.download_button.configure(state="disabled")
+            self.load_button.configure(state="disabled")
+
+            self.cancel_button.configure(state="normal")
+        
+            # Get output folder
+            output_folder = self.output_entry.get().strip()
+        
+            # Disable buttons to prevent multiple clicks
+            self.download_button.configure(state="disabled")
+            self.load_button.configure(state="disabled")
+            
+            # Check if output folder is selected
+            if not output_folder:
+                messagebox.showerror(
+                "Output Folder",
+                "Please select an output folder first."
+                )
+                return
+            
+            #Start thread for downloading to keep GUI responsive
             threading.Thread(
             target=self.download_worker,
             daemon=True
@@ -266,6 +310,7 @@ class SpotiFlacGUI:
         
     def download_worker(self):
 
+        # Get selected songs
         selected = []
 
         # Collect checked songs
@@ -273,6 +318,7 @@ class SpotiFlacGUI:
             if checkbox.get():
                 selected.append(song)
 
+        # Check if any songs are selected
         if not selected:
             messagebox.showwarning(
                 "No Songs",
@@ -280,8 +326,10 @@ class SpotiFlacGUI:
             )
             return
         
+        # Get output folder
         output_folder = self.output_entry.get().strip()
 
+        # Check if output folder is selected
         if not output_folder:
             messagebox.showerror(
                 "Output Folder",
@@ -289,10 +337,12 @@ class SpotiFlacGUI:
             )
             return
 
+        # disable buttons to prevent multiple clicks
         self.download_button.configure(state="disabled")
         self.load_button.configure(state="disabled")
         self.progress.set(0)
         
+        # Initialize DownloadManager with the selected provider
         manager = DownloadManager(
             self.output_entry.get(),
             provider=self.provider_menu.get().lower()
@@ -300,33 +350,140 @@ class SpotiFlacGUI:
 
         total = len(selected)
         
+        self.app.after(
+            0,
+            lambda: self.progress.set(0)
+        )
         
-
+        # Update status to indicate the start of the download process
+        self.app.after(
+            0,
+            lambda: self.status.configure(
+                text=f"Starting download of {total} songs..."
+            )
+        )
+        
+        
+        
+        # Download each selected song
         for i, song in enumerate(selected, start=1):
+            
+            # Check if the user clicked the cancel button during the download process
+            if self.cancel_download:
+                    
+                self.log("Download cancelled by user.")
+            
+                break
+            
+            # Check if the song already exists in the output folder
+            filename = self.get_song_filename(song)
 
-            self.status.configure(
-                text=f"Downloading: {song['title']}"
+            if os.path.exists(filename):
+                
+                self.app.after(
+                    0,
+                    lambda i=i, total=total, song=song:
+                        self.status.configure(
+                            text=f"Skipped ({i}/{total})\n{song['title']}"
+                        )
+                )
+                
+                self.log(
+                    f"[{i}/{total}] ⏭ Skipped: {song['title']}"
+                )
+
+                progress = i / total
+
+                self.app.after(
+                    0,
+                    lambda p=progress: self.progress.set(p)
+                )
+                
+                continue
+
+            self.app.after(
+            0,
+                lambda i=i, total=total, song=song:
+                self.status.configure(
+                    text=f"Downloading ({i}/{total}): {song['title']}"
+                )
             )
 
             self.log(f"Downloading {song['title']}")
 
+            self.app.after(
+                0,
+                lambda i=i, total=total, song=song:
+                    self.status.configure(
+                        text=f"Downloading ({i}/{total})\n{song         ['artists']} - {song['title']}"
+                    )
+            )
+
             result = manager.download(song)
+            
+            progress = i / total
 
+            self.app.after(
+                0,
+                lambda p=progress: self.progress.set(p)
+            )
+
+            # Update the log and progress bar based on the download result
             if result.success:
-                self.log(f"✓ {song['title']} ({result.provider})")
+
+                self.log(
+                    f"[{i}/{total}] ✓ {song['title']}"
+                )
+
             else:
-                self.log(f"✗ {song['title']} ({result.error})")
-
+            
+                self.log(
+                    f"[{i}/{total}] ✗ {song['title']}"
+                )
+                
+            # Update progress bar and status
             self.progress.set(i / total)
-
+            
+            # Update the status label to show the number of songs downloaded
             self.status.configure(
                 text=f"{i}/{total} downloaded"
-            )           
+            )          
             
-        self.download_button.configure(state="normal")
-        self.load_button.configure(state="normal")  
-        self.progress.set(1)    
+            # After all downloads are complete, update the status and re-enable buttons
+            if self.cancel_download:
+                self.app.after(
+                    0,
+                    lambda: self.status.configure(text="Download cancelled.")
+                )
+            else:
+                self.app.after(
+                    0,
+                    lambda: self.status.configure(text="Finished!")
+                )
             
+            self.app.after(
+                0,
+                lambda: self.progress.set(1)
+            )
+            
+            self.app.after(
+                0,
+                lambda: self.download_button.configure(state="normal")
+                
+            )
+
+            self.app.after(
+                0,
+                lambda: self.load_button.configure(state="normal")
+            )
+            self.progress.set(1)
+            
+            self.app.after(
+                0,
+                lambda: self.cancel_button.configure(state="disabled")
+            )    
+    
+    # Logging function to update the log box in the GUI
     def log(self, text):
         self.app.after(
             0,
@@ -335,6 +492,25 @@ class SpotiFlacGUI:
             self.log_box.see("end")
             )
         )
+
+    # Function to get the filename for a song based on its title and artists
+    def get_song_filename(self, song):
+        return os.path.join(
+            self.output_entry.get(),
+            f"{song['artists']} - {song['title']}.flac"
+        )
     
+    # Function to cancel ongoing downloads    
+    def cancel_downloads(self):
+
+        self.cancel_download = True
+
+        self.cancel_button.configure(state="disabled")
+
+        self.status.configure(
+            text="Cancelling after current song..."
+        )
+    
+    # Run the GUI application
     def run(self):
         self.app.mainloop()
