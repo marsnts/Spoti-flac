@@ -17,7 +17,7 @@ print(f"Logged in as: {user['display_name']}")
 #
 #print(f"\nTotal songs: {len(playlist['songs'])}")
 
-from gui import SpotiFlacGUI
+from app_gui import SpotiFlacGUI
 
 if __name__ == "__main__":
     app = SpotiFlacGUI()

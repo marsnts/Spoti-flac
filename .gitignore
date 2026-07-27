@@ -15,3 +15,6 @@ venv/
 # OS files
 .DS_Store
 Thumbs.db
+
+## Custom files
+gui_copy.py
