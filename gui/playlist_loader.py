@@ -24,13 +24,11 @@ class PlaylistLoaderMixin:
             self.display_cover(playlist)
 
             self.display_song_list(playlist)
-
+            
         except Exception as e:
+            self.show_playlist_error(e)
 
-            messagebox.showerror(
-                "Spotify Error",
-                str(e)
-            )
+        
             
             
     def validate_playlist_url(self):
@@ -62,11 +60,14 @@ class PlaylistLoaderMixin:
         
     def display_cover(self, playlist):
 
-        if not playlist["cover"]:
+
+        cover = playlist.get("cover")
+        
+        if not cover:
             self.cover_label.configure(image=None,  text="")
             return
 
-        response = requests.get(playlist["cover"])
+        response = requests.get(cover)
 
         image = Image.open(BytesIO(response.content))
         image = image.resize((180, 180))
@@ -86,29 +87,44 @@ class PlaylistLoaderMixin:
         
         self.song_checkboxes.clear()
         
-        for widget in self.song_frame.winfo_children():
-            widget.destroy()
+        self.clear_song_list()
         
         for i, song in enumerate(
             playlist["songs"],
             start=1
         ):
+            self.create_song_checkbox(song, i)
+            
+            
+    def clear_song_list(self):     
+        self.song_checkboxes.clear()
+
+        for widget in self.song_frame.winfo_children():
+            widget.destroy()      
+             
+    def create_song_checkbox(self, song, i):
         
-            checkbox = ctk.CTkCheckBox(
-                self.song_frame,
-                text=f"{i}. {song['title']} - {song['artists']}"
-            )
+        checkbox = ctk.CTkCheckBox(
+            self.song_frame,
+            text=f"{i}. {song['title']} - {song['artists']}"
+        )
         
-            checkbox.select()
+        checkbox.select()
         
-            checkbox.grid(
-                row=i-1,
-                column=0,
-                sticky="w",
-                padx=10,
-                pady=3
-            )
+        checkbox.grid(
+            row=i-1,
+            column=0,
+            sticky="w",
+            padx=10,
+            pady=3
+        )
         
-            self.song_checkboxes.append(
-                (checkbox, song)
+        self.song_checkboxes.append(
+            (checkbox, song)
+        )
+        
+    def show_playlist_error(self, error):
+            messagebox.showerror(
+                "Spotify Error",
+                str(error)
             )
