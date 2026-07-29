@@ -84,20 +84,21 @@ class DownloaderMixin:
 
     def set_download_state(self, downloading):
 
-        self.app.after(
-            0,
-            lambda: (
-                self.download_button.configure(
-                    state="disabled" if downloading else    "normal"
-                ),
-                self.load_button.configure(
-                    state="disabled" if downloading else    "normal"
-                ),
-                self.cancel_button.configure(
-                    state="normal" if downloading else  "disabled"
-                )
-            )
-        )
+        enabled = "normal"
+        disabled = "disabled"
+
+        normal_state = disabled if downloading else enabled
+        cancel_state = enabled if downloading else disabled
+        
+        self.download_button.configure(state=normal_state)
+        self.load_button.configure(state=normal_state)
+        self.url_entry.configure(state=normal_state)
+        self.output_entry.configure(state=normal_state)
+        self.browse_button.configure(state=normal_state)
+        self.provider_menu.configure(state=normal_state)
+        self.cancel_button.configure(state=cancel_state)
+        self.select_all_button.configure(state=normal_state)
+        self.deselect_all_button.configure(state=normal_state)
 
     def validate_download(self):
         # Get selected songs
@@ -141,6 +142,13 @@ class DownloaderMixin:
         self.set_download_state(True)
         self.set_progress(0)
         
+        stats = {
+            "downloaded": 0,
+            "skipped": 0,
+            "failed": 0,
+        }
+        
+        
         # Initialize DownloadManager with the selected provider
         manager = DownloadManager(
             output_folder,
@@ -158,20 +166,26 @@ class DownloaderMixin:
         for i, song in enumerate(selected, start=1):
 
             if self.cancel_download:
-                self.log("Download cancelled by user.")
+                self.show_cancelled()
                 break
             
-            self.download_song(
+            result = self.download_song(
                 manager,
                 output_folder,
                 song,
                 i,
                 total
             )
-        
+            
+            stats[result] += 1
+                
         # After all downloads are complete,update the statuand        re-enable buttons
-        self.finish_download()
-    
+        self.finish_download(
+                stats["downloaded"],
+                stats["skipped"],
+                stats["failed"],
+            )
+        
     def download_song(
         self,
         manager,
@@ -187,16 +201,15 @@ class DownloaderMixin:
         
         if os.path.exists(filename):
             
-            self.skip_song(song, i, total)
-            
-            return
+            self.show_skipped(song, i, total)
+            return "skipped"
                    
         
-        self.log(f"Downloading {song['title']}")
+        self.log(
+            f"[{i}/{total}] Downloading: {song['title']}"
+        )
         
-        self.set_status(
-            f"Downloading ({i}/{total})\n{song['artists']} - {song['title']}"
-            )
+        self.show_downloading(song, i, total)
         
         result = manager.download(song)
         
@@ -210,32 +223,32 @@ class DownloaderMixin:
             total
         )
         
-        # Update the status label to show the number of songs downloaded
-        self.set_status(
-            f"{i}/{total} downloaded"
-        )          
+        if result.success:
+            return "downloaded"
+        else:
+            return "failed"         
 
-    def finish_download(self):
+    def finish_download(self, downloaded, skipped, failed):
 
         if self.cancel_download:
-            self.set_status("Download cancelled.")
+            self.show_cancelled()
         else:
-            self.set_status("Finished!")
-
+            self.show_finished(downloaded, skipped, failed)
         self.set_progress(1)
         self.set_download_state(False)
 
-    def skip_song(self, song, i, total):
+    def show_skipped(self, song, current, total):
 
         self.set_status(
-            f"Skipped ({i}/{total})\n{song['title']}"
+            f"Skipped ({current}/{total})\n"
+            f"{song['artists']} - {song['title']}"
         )
-
+    
         self.log(
-            f"[{i}/{total}] ⏭ Skipped: {song['title']}"
+            f"[{current}/{total}] ⏭ Skipped: {song['title']}"
         )
 
-        self.set_progress(i / total)
+        self.set_progress(current / total)
         
     def log_download_result(
         self,
@@ -258,3 +271,20 @@ class DownloaderMixin:
             )
     
 
+    def show_downloading(self, song, current, total):
+        self.set_status(
+            f"Downloading ({current}/{total})\n"
+            f"{song['artists']} - {song['title']}"
+        )
+        
+    def show_finished(self,downloaded,skipped,failed):
+        self.set_status(
+            "Finished!\n"
+            f"✓ {downloaded} downloaded\n"
+            f"⏭ {skipped} skipped\n"
+            f"✗ {failed} failed"
+        )
+    
+    def show_cancelled(self):
+        self.set_status("Download cancelled.")
+        

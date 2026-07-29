@@ -5,62 +5,64 @@ from gui.logger import LoggerMixin
 from gui.dialogs import DialogMixin
 from gui.playlist_loader import PlaylistLoaderMixin
 from gui.downloader import DownloaderMixin
+from gui.config import ConfigMixin
 
 #  GUI Class
 class SpotiFlacGUI(
     LoggerMixin,
     DialogMixin,
     PlaylistLoaderMixin,
-    DownloaderMixin
+    DownloaderMixin,
+    ConfigMixin
 ):
+    WINDOW_WIDTH = 1200
+    WINDOW_HEIGHT = 900
+    COVER_SIZE = 180
+    SONG_LIST_HEIGHT = 250
+    LOG_HEIGHT = 120
+    LOG_WIDTH = 700
 
     def __init__(self):
-
+        
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
         self.spotify = SpotifyClient()
 
-        # Store song checkboxes
-        self.song_checkboxes = []
+        
         
         # Flag to indicate if the download process should be canceled
         self.cancel_download = False
 
         self.app = ctk.CTk()
-        self.app.title("Spoti-flac")
         
         self.app.update_idletasks()
         
         # Center the window on the screen
-        
-        width = 1200
-        height = 900
-        
-        x = (self.app.winfo_screenwidth() - width) // 2
-        y = (self.app.winfo_screenheight() - height) // 2
-        
-        self.app.geometry(f"{width}x{height}+{x}+{y}")
+        self.configure_window()
 
         self.build_ui()
 
+        self.load_saved_settings()
+        
+
     def build_ui(self):
 
-        self.header_section()
+        self.build_header_section()
 
-        self.playlist_section()
+        self.build_playlist_section()
         
         #self.song_section()
         
-        self.bottom_section()
+        self.build_bottom_section()
         
-        self.log_section()
+        self.build_log_section()
 
     # Run the GUI application
     def run(self):
         self.app.mainloop()
         
-    def header_section(self):
+    def build_header_section(self):
     
         self.main = ctk.CTkFrame(self.app)
         self.main.pack(fill="both", expand=True, padx=20, pady=20)
@@ -81,104 +83,15 @@ class SpotiFlacGUI(
         )
         subtitle.pack()
     
-    def playlist_section(self):
-        url_frame = ctk.CTkFrame(self.top)
-        url_frame.pack(fill="x", pady=15)
+    def build_playlist_section(self):
         
-        self.url_entry = ctk.CTkEntry(
-        url_frame,
-        placeholder_text="https://open.spotify.com/playlist/..."
-        )
-        self.url_entry.pack(
-            side="left",
-            fill="x",
-            expand=True,
-            padx=(0,10)
-        )
-        
-        self.load_button = ctk.CTkButton(
-        url_frame,
-        text="Load Playlist",
-        command=self.load_playlist
-        )
-
-        self.load_button.pack(side="right")
-        
-        info = ctk.CTkFrame(self.main)
-        info.pack(fill="x", pady=10)
-        
-        left = ctk.CTkFrame(info)
-        left.pack(side="left", padx=20) 
-        
-        self.cover_label = ctk.CTkLabel(
-        left,
-        text="No Cover",
-        width=180,
-        height=180
-        )
-        
-        self.cover_label.pack()
-        
-        right = ctk.CTkFrame(info)
-        right.pack(
-            side="left",
-            fill="both",
-            expand=True,
-            padx=20
-        )   
-        
-        self.playlist_name = ctk.CTkLabel(
-            right,
-            text="No playlist loaded",
-            font=("Segoe UI",20,"bold")
-        )
-        
-        self.playlist_name.pack(anchor="w")
-        
-        self.song_count = ctk.CTkLabel(
-            right,
-            text=""
-        )
-        
-        self.song_count.pack(anchor="w", pady=(0,20))
-        
-        folder_frame = ctk.CTkFrame(right)
-        folder_frame.pack(fill="x")    
-        
-        self.output_entry = ctk.CTkEntry(
-            folder_frame,
-            placeholder_text="Choose output folder..."
-            )
-        
-        self.output_entry.pack(
-            side="left",
-            fill="x",
-            expand=True,
-            padx=(0,10)
-        )        
-        
-        browse = ctk.CTkButton(
-            folder_frame,
-            text="Browse",
-            command=self.select_folder
-        )
-        
-        browse.pack(side="right")   
-        
-        self.song_frame = ctk.CTkScrollableFrame(
-        self.main,
-        height=250
-        )
-        
-        self.song_frame.pack(
-        fill="both",
-        expand=True,
-        pady=20
-        )
-        
-#   def song_section():
-    
-    def bottom_section(self):
+        self.build_url_section()
+        self.build_playlist_info()
+        self.build_output_folder()
+        self.build_song_list()
+        self.build_controls()
+            
+    def build_bottom_section(self):
         
         bottom = ctk.CTkFrame(self.main)
         bottom.pack(fill="x")       
@@ -221,18 +134,18 @@ class SpotiFlacGUI(
         
         self.provider_menu = ctk.CTkOptionMenu(
         bottom,
-        values=["yt-dlp", "spotDL", "Qobuz"]
+        values=["yt-dlp", "spotDL (WIP)", "Qobuz (WIP)"]
         )
         
         self.provider_menu.set("yt-dlp")  # Default provider
         self.provider_menu.pack(side="right", padx=(0,10))
     
-    def log_section(self):
+    def build_log_section(self):
         
         self.log_box = ctk.CTkTextbox(
         self.app,
-        width=700,
-        height=120
+        width=self.LOG_WIDTH,
+        height=self.LOG_HEIGHT
         )
         
         self.log_box.pack(
@@ -240,3 +153,160 @@ class SpotiFlacGUI(
             padx=20,
             pady=10
         )
+        
+    def select_all_songs(self):
+
+        for checkbox, _ in self.song_checkboxes:
+            checkbox.select()
+            
+    def deselect_all_songs(self):
+
+        for checkbox, _ in self.song_checkboxes:
+            checkbox.deselect()
+                
+    def build_url_section(self):
+        
+        url_frame = ctk.CTkFrame(self.top)
+        url_frame.pack(fill="x", pady=15)
+        
+        self.url_entry = ctk.CTkEntry(
+        url_frame,
+        placeholder_text="https://open.spotify.com/playlist/..."
+        )
+        self.url_entry.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(0,10)
+        )
+
+        self.load_button = ctk.CTkButton(
+        url_frame,
+        text="Load Playlist",
+        command=self.load_playlist
+        )
+
+        self.load_button.pack(side="right")
+        
+    def build_playlist_info(self):
+        info = ctk.CTkFrame(self.main)
+        info.pack(fill="x", pady=10)
+        
+        left = ctk.CTkFrame(info)
+        left.pack(side="left", padx=20) 
+        
+        self.cover_label = ctk.CTkLabel(
+        left,
+        text="No Cover",
+        width=self.COVER_SIZE,
+        height=self.COVER_SIZE
+        )
+        
+        self.cover_label.pack()
+        
+        self.right = ctk.CTkFrame(info)
+        self.right.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=20
+        )   
+        
+        self.playlist_name = ctk.CTkLabel(
+            self.right,
+            text="No playlist loaded",
+            font=("Segoe UI",20,"bold")
+        )
+        
+        self.playlist_name.pack(anchor="w")
+        
+        self.song_count = ctk.CTkLabel(
+            self.right,
+            text=""
+        )
+        
+        self.song_count.pack(anchor="w", pady=(0,20))
+        
+    def build_output_folder(self):
+        
+        folder_frame = ctk.CTkFrame(self.right)
+        folder_frame.pack(fill="x")    
+        
+        self.output_entry = ctk.CTkEntry(
+            folder_frame,
+            placeholder_text="Choose output folder..."
+            )
+        
+        self.output_entry.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            padx=(0,10)
+        )        
+        
+        self.browse_button = ctk.CTkButton(
+            folder_frame,
+            text="Browse",
+            command=self.select_folder
+        )
+        
+        self.browse_button.pack(side="right")
+        
+    def build_song_list(self):
+        # Store song checkboxes
+        self.song_checkboxes = []
+        
+        self.song_frame = ctk.CTkScrollableFrame(
+        self.main,
+        height=self.SONG_LIST_HEIGHT
+        )
+        
+        self.song_frame.pack(
+        fill="both",
+        expand=True,
+        pady=20
+        )
+    
+    def build_controls(self):
+        
+        controls = ctk.CTkFrame(self.main)
+        controls.pack(fill="x", pady=(10, 5))
+        
+        self.select_all_button = ctk.CTkButton(
+            controls,
+            text="Select All",
+            width=120,
+            command=self.select_all_songs
+        )
+        self.select_all_button.pack(side="left", padx=(0, 10))
+        
+        self.deselect_all_button = ctk.CTkButton(
+            controls,
+            text="Deselect All",
+            width=120,
+            command=self.deselect_all_songs
+        )
+        self.deselect_all_button.pack(side="left")
+        
+    def configure_window(self):
+
+        self.app.title("Spoti-flac")
+
+        width = self.WINDOW_WIDTH
+        height = self.WINDOW_HEIGHT
+
+        x = (self.app.winfo_screenwidth() - width) // 2
+        y = (self.app.winfo_screenheight() - height) // 2
+
+        self.app.geometry(
+            f"{width}x{height}+{x}+{y}"
+        )
+        
+    def load_saved_settings(self):
+        
+        config = self.load_config()
+        
+        folder = config.get("output_folder", "")
+        
+        if folder:
+            self.output_entry.insert(0, folder)
