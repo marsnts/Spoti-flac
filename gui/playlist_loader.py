@@ -26,7 +26,10 @@ class PlaylistLoaderMixin:
             self.display_song_list(playlist)
             
         except Exception as e:
-            self.show_playlist_error(e)
+            messagebox.showerror(
+                "Spotify Error",
+                str(e)
+            )
 
         
             

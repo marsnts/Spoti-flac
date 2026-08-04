@@ -183,7 +183,7 @@ class DownloaderMixin:
         self.finish_download(
                 stats["downloaded"],
                 stats["skipped"],
-                stats["failed"],
+                stats["failed"]
             )
         
     def download_song(
@@ -234,7 +234,7 @@ class DownloaderMixin:
             self.show_cancelled()
         else:
             self.show_finished(downloaded, skipped, failed)
-        self.set_progress(1)
+            self.set_progress(1)
         self.set_download_state(False)
 
     def show_skipped(self, song, current, total):
