@@ -62,7 +62,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-######Create a `env` file in the project root:
+###### Create a `env` file in the project root:
 ```
 SPOTIPY_CLIENT_ID=your_client_id
 SPOTIPY_CLIENT_SECRET=your_client_secret
