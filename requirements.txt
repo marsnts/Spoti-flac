@@ -1,4 +1,3 @@
-python
 python-dotenv
 spotipy
 customtkinter
@@ -6,5 +5,4 @@ requests
 pillow
 spotdl
 yt-dlp
-ffmpeg ##needs to be installed in the system PATH https://www.gyan.dev/ffmpeg/builds/
 mutagen

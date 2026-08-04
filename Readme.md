@@ -27,13 +27,24 @@ A Python desktop application for loading Spotify playlists and downloading selec
 
 ## Installation
 
-Clone the repository:
+###### Install Python
+
+Install python from the official Python website.
+
+###### Install FFmpeg
+
+FFmpeg must be installed and available in system PATH.
+
+Download it from:
+
+https://www.gyan.dev/ffmpeg/builds/
+
+###### Clone the repository:
 
 ```bash
 git clone https://github.com/marsnts/Spoti-flac.git
 cd Spoti-flac
 ```
-
 
 ###### Create a virtual environment:
 ```bash
