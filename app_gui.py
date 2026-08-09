@@ -29,11 +29,11 @@ class SpotiFlacGUI(
 
         self.spotify = SpotifyClient()
 
-        
-        
         # Flag to indicate if the download process should be canceled
         self.cancel_download = False
-
+        
+        self.failed_songs = []
+        
         self.app = ctk.CTk()
         
         self.app.update_idletasks()
@@ -44,6 +44,8 @@ class SpotiFlacGUI(
         self.build_ui()
 
         self.load_saved_settings()
+        
+       
         
 
     def build_ui(self):
@@ -122,6 +124,18 @@ class SpotiFlacGUI(
         )
         
         self.download_button.pack(side="right")
+        
+        self.retry_button = ctk.CTkButton(
+            bottom,
+            text="Retry Failed",
+            command=self.retry_failed_downloads,
+            state="disabled"
+        )
+        
+        self.retry_button.pack(
+            side="right",
+            padx=(0, 10)
+        )
         
         self.cancel_button = ctk.CTkButton(
             bottom,
