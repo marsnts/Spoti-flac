@@ -12,15 +12,18 @@ class DownloaderMixin:
     
             # Flag to indicate if the download process should be canceled
             self.cancel_download = False
-    
+            self.failed_songs = []
+            
+            self.set_retry_state(False)
+            
             # Disable buttons to prevent multiple clicks
             self.set_download_state(True)
     
             #Start thread for downloading to keep GUI responsive
             threading.Thread(
-            target=self.download_worker,
-            daemon=True
-        ).start()
+                target=self.download_worker,
+                daemon=True
+            ).start()
     
     def get_selected_songs(self):
 
@@ -99,6 +102,7 @@ class DownloaderMixin:
         self.cancel_button.configure(state=cancel_state)
         self.select_all_button.configure(state=normal_state)
         self.deselect_all_button.configure(state=normal_state)
+        self.retry_button.configure(state=normal_state)
 
     def validate_download(self):
         # Get selected songs
@@ -226,6 +230,8 @@ class DownloaderMixin:
         if result.success:
             return "downloaded"
         else:
+            self.failed_songs.append(song)
+            self.set_retry_state(True)
             return "failed"         
 
     def finish_download(self, downloaded, skipped, failed):
@@ -287,4 +293,99 @@ class DownloaderMixin:
     
     def show_cancelled(self):
         self.set_status("Download cancelled.")
+        
+    def retry_failed_downloads(self):
+
+        if not self.failed_songs:
+            self.set_status("No failed downloads to retry.")
+            return
+    
+        self.cancel_download = False
+        
+        self.set_retry_state(False)
+        self.set_download_state(True)
+    
+        threading.Thread(
+            target=self.retry_failed_worker,
+            daemon=True
+        ).start()
+    
+    def retry_failed_worker(self):
+
+        failed_songs = self.failed_songs.copy()
+    
+        # Clear old failures.
+        # Songs that fail again will be added back.
+        self.failed_songs.clear()
+    
+        output_folder = self.output_entry.get().strip()
+    
+        manager = DownloadManager(
+            output_folder,
+            provider=self.provider_menu.get().lower()
+        )
+    
+        total = len(failed_songs)
+    
+        downloaded = 0
+        failed = 0
+    
+        self.set_progress(0)
+    
+        self.set_status(
+            f"Retrying {total} failed downloads..."
+        )
+    
+        for i, song in enumerate(failed_songs, start=1):
+        
+            if self.cancel_download:
+            
+                # Keep songs that haven't been retried yet
+                remaining_songs = failed_songs[i - 1:]
+    
+                self.failed_songs.extend(
+                    remaining_songs
+                )
+    
+                self.show_cancelled()
+                break
+            
+            result = self.download_song(
+                manager,
+                output_folder,
+                song,
+                i,
+                total
+            )
+    
+            if result == "downloaded":
+                downloaded += 1
+    
+            elif result == "failed":
+                failed += 1
+    
+        if not self.cancel_download:
+        
+            self.set_status(
+                "Retry finished!\n"
+                f"✓ {downloaded} downloaded\n"
+                f"✗ {failed} failed"
+            )
+    
+        self.set_retry_state(
+            bool(self.failed_songs)
+        )
+    
+        self.set_download_state(False)
+        
+    def set_retry_state(self, enabled):
+
+        state = "normal" if enabled else "disabled"
+
+        self.app.after(
+            0,
+            lambda: self.retry_button.configure(
+                state=state
+            )
+        )
         
