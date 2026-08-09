@@ -9,9 +9,6 @@ class YtDlpProvider(BaseProvider):
     @property
     def name(self):
         return "yt-dlp"
-    
-    def __init__(self):
-        pass
 
     def __init__(self, output_folder):
         self.output_folder = output_folder

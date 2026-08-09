@@ -4,5 +4,6 @@ customtkinter
 requests
 pillow
 spotdl
-yt-dlp
+yt-dlp[default]
 mutagen
+deno
